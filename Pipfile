@@ -7,10 +7,12 @@ verify_ssl = true
 
 [packages]
 numpy = "*"
+pyqt5 = "*"
 matplotlib = "*"
 pymaxflow = "*"
 autopep8 = "*"
 pylint = "*"
+yapf = "*"
 pillow = "*"
 
 [requires]
