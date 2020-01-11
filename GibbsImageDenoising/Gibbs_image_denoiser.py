@@ -1,4 +1,4 @@
-import math
+from math import exp, log
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -42,20 +42,11 @@ def generate_image(height, width, beta, iterations):
     for iteration in range(iterations):
         for y in range(height):
             for x in range(width):
-                k_zero_weights_sum = 0
-                k_one_weights_sum = 0
+                k_zero_weights_sum = sum_g_tt(0, image, y, x, beta)
+                k_one_weights_sum = sum_g_tt(1, image, y, x, beta)
 
-                neighbours = get_neighbours(height, width, y, x)
-                for nb in neighbours:
-                    # edges weights summing
-                    k_zero_weights_sum += 0 if rnd_image[nb[0],
-                                                         nb[1]] == 0 else beta
-                    k_one_weights_sum += 0 if rnd_image[nb[0],
-                                                        nb[1]] == 1 else beta
-
-                t = math.exp(-k_zero_weights_sum) / (
-                    math.exp(-k_zero_weights_sum) +
-                    math.exp(-k_one_weights_sum))
+                t = exp(-k_zero_weights_sum) / (exp(-k_zero_weights_sum) +
+                                                exp(-k_one_weights_sum))
                 image[y, x] = int(np.random.uniform() >= t)  # {0, 1}
         # after iteration swap images
         image, rnd_image = rnd_image, image
@@ -73,18 +64,18 @@ def noise_image(image, epsilon):
     return noised_image
 
 
-def q_t(k, k_original, epsilon):
+def q_t(k, k_, epsilon):
     """
-    k - zero_or_one
-    k_original - pixel from original_image
+    k: 0 or 1
+    k_: pixel value
     """
-    return -math.log(1 - epsilon) if k == k_original else -math.log(epsilon)
+    return -log(1 - epsilon) if k == k_ else -log(epsilon)
 
 
 def g_tt(k, k_, beta):
     """
-    k - zero_or_one
-    k_ - pixel from noised_image
+    k: 0 or 1
+    k_: pixel value
     """
     return 0 if k == k_ else beta
 
@@ -100,33 +91,60 @@ def sum_g_tt(zero_or_one, noised_image, y, x, beta):
 
 
 def calc_images_changes(noised_image, denoised_image):
-    # for y in range(noised_image.shape[0]):
-    #     for x in range
-    print(np.mean(noised_image != denoised_image))
-    return np.mean(noised_image != denoised_image)
+    print(np.mean(noised_image != denoised_image, dtype=np.float64))
+    return np.mean(noised_image != denoised_image, dtype=np.float64)
+
+
+def almost_equal_labelings(labeling1, labeling2, changes_threshold):
+    """
+    Returns True if there are not more than
+    changes_threshold% of mismatching pixels
+    """
+    height, width = labeling1.shape
+    max_errors = height * width * changes_threshold / 100
+    current_errors = 0
+    for i in range(height):
+        for j in range(width):
+            if labeling1[i, j] != labeling2[i, j]:
+                current_errors += 1
+            if current_errors > max_errors:
+                print("curr: {0} | max: {1}".format(current_errors,
+                                                    max_errors))
+                return False
+    return True
 
 
 def Gibbs(original_image, noised_image, epsilon, beta, threshold):
     print("Gibbsing . . .")
-    noised_image_copy = noised_image.copy()
     denoised_image = np.random.randint(2,
                                        size=(original_image.shape[0],
                                              original_image.shape[1]))
+    denoised_image_prev = denoised_image.copy()
+
+    iteration = 0
     while True:
+        iteration += 1
         for y in range(noised_image.shape[0]):
             for x in range(noised_image.shape[1]):
-                denoised_image[y, x] = (math.exp(
-                    -q_t(0, original_image[y, x], epsilon) -
-                    sum_g_tt(0, noised_image, y, x, beta))) / (
-                        (math.exp(-q_t(0, original_image[y, x], epsilon) -
-                                  sum_g_tt(0, noised_image, y, x, beta))) +
-                        (math.exp(-q_t(1, original_image[y, x], epsilon) -
-                                  sum_g_tt(1, noised_image, y, x, beta))))
+                zero_q = q_t(0, noised_image[y, x], epsilon)
+                one_q = q_t(1, noised_image[y, x], epsilon)
 
-        if calc_images_changes(noised_image_copy, denoised_image) < threshold:
+                zero_edges_sum = sum_g_tt(0, noised_image, y, x, beta)
+                one_edges_sum = sum_g_tt(1, noised_image, y, x, beta)
+
+                t = exp(-zero_q -
+                        zero_edges_sum) / (exp(-zero_q - zero_edges_sum) +
+                                           exp(-one_q - one_edges_sum))
+
+                denoised_image[y, x] = int(np.random.uniform() >= t)
+
+        # if calc_images_changes(denoised_image_prev,
+        #                        denoised_image) < threshold:
+        if almost_equal_labelings(denoised_image, denoised_image_prev,
+                                  threshold):
             return denoised_image
         else:
-            denoised_image, noised_image_copy = noised_image_copy, denoised_image
+            denoised_image_prev = denoised_image.copy()
 
 
 if __name__ == "__main__":
@@ -134,12 +152,13 @@ if __name__ == "__main__":
     # print(image.shape)
     # print(image)
     # image = binarize(image, 128)
-    gen_iterations = 100
-    epsilon = 0.5
-    beta = 0.8
-    img_h = 100
-    img_w = 100
-    threshold = 0.01
+    gen_iterations = 10000
+    epsilon = 0.1
+    beta = 0.9
+    img_h = 10
+    img_w = 10
+
+    threshold = 5
 
     gen_image = generate_image(img_h, img_w, beta, gen_iterations)
     noised_image = noise_image(gen_image, epsilon)
