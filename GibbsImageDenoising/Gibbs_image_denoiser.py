@@ -10,9 +10,22 @@ from PIL import Image
 def add_image_figure(figure, name, location, image):
     fig_image = figure.add_subplot(location)
     fig_image.set_title(name)
-    fig_image.imshow(image, cmap=plt.get_cmap('gray'))
+    fig_image.imshow(image, cmap=plt.get_cmap('bone'))
     fig_image.axis('off')
     return fig_image
+
+
+def binarizate(image, threshold):
+    binarized_image = image.copy()
+
+    for h_pixel in range(binarized_image.shape[0]):
+        for w_pixel in range(binarized_image.shape[1]):
+            if binarized_image[h_pixel, w_pixel] >= threshold:
+                binarized_image[h_pixel, w_pixel] = 1
+            else:
+                binarized_image[h_pixel, w_pixel] = 0
+
+    return binarized_image
 
 
 def get_neighbours(h, w, py, px):
@@ -35,24 +48,24 @@ def get_neighbours(h, w, py, px):
 def generate_image(height, width, beta, iterations):
     # generate k from {0,1}
     rnd_image = np.random.randint(2, size=(height, width))
-    image = rnd_image.copy()
+    # image = rnd_image.copy()
 
     if iterations % 2 != 0:
         iterations += 1
     for iteration in range(iterations):
         for y in range(height):
             for x in range(width):
-                k_zero_weights_sum = sum_g_tt(0, image, y, x, beta)
-                k_one_weights_sum = sum_g_tt(1, image, y, x, beta)
+                k_zero_weights_sum = sum_g_tt(0, rnd_image, y, x, beta)
+                k_one_weights_sum = sum_g_tt(1, rnd_image, y, x, beta)
 
                 t = exp(-k_zero_weights_sum) / (exp(-k_zero_weights_sum) +
                                                 exp(-k_one_weights_sum))
-                image[y, x] = int(np.random.uniform() >= t)  # {0, 1}
+                rnd_image[y, x] = int(np.random.uniform() >= t)  # {0, 1}
         # after iteration swap images
-        image, rnd_image = rnd_image, image
+        # image, rnd_image = rnd_image, image
 
     # after all iteration return generated image
-    return image
+    return rnd_image
 
 
 def noise_image(image, epsilon):
@@ -91,27 +104,8 @@ def sum_g_tt(zero_or_one, noised_image, y, x, beta):
 
 
 def calc_images_changes(noised_image, denoised_image):
-    print(np.mean(noised_image != denoised_image, dtype=np.float64))
+    # print(np.mean(noised_image != denoised_image, dtype=np.float64))
     return np.mean(noised_image != denoised_image, dtype=np.float64)
-
-
-def almost_equal_labelings(labeling1, labeling2, changes_threshold):
-    """
-    Returns True if there are not more than
-    changes_threshold% of mismatching pixels
-    """
-    height, width = labeling1.shape
-    max_errors = height * width * changes_threshold / 100
-    current_errors = 0
-    for i in range(height):
-        for j in range(width):
-            if labeling1[i, j] != labeling2[i, j]:
-                current_errors += 1
-            if current_errors > max_errors:
-                print("curr: {0} | max: {1}".format(current_errors,
-                                                    max_errors))
-                return False
-    return True
 
 
 def Gibbs(original_image, noised_image, epsilon, beta, threshold):
@@ -120,6 +114,7 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
                                        size=(original_image.shape[0],
                                              original_image.shape[1]))
     denoised_image_prev = denoised_image.copy()
+    # TODO: counting most common values
 
     iteration = 0
     while True:
@@ -138,30 +133,43 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
 
                 denoised_image[y, x] = int(np.random.uniform() >= t)
 
-        # if calc_images_changes(denoised_image_prev,
-        #                        denoised_image) < threshold:
-        if almost_equal_labelings(denoised_image, denoised_image_prev,
-                                  threshold):
+        if calc_images_changes(denoised_image_prev,
+                               denoised_image) < threshold:
+            # if almost_equal_labelings(denoised_image, denoised_image_prev,
+            #                           threshold):
             return denoised_image
         else:
+            if iteration % 100 == 0:
+                print("iteration {0}: {1}".format(
+                    iteration,
+                    calc_images_changes(denoised_image_prev, denoised_image)))
+            if iteration % 1000 == 0:
+                plt.imsave("iteration_{0}__{1}.png".format(
+                    iteration,
+                    calc_images_changes(denoised_image_prev, denoised_image)), denoised_image, cmap=mpl.cm.gray)
             denoised_image_prev = denoised_image.copy()
 
 
 if __name__ == "__main__":
-    # image = np.asarray(Image.open("input_image.jpg").convert('L'))
+    image = binarizate(np.asarray(Image.open("filename.png").convert('L')),
+                       128)
     # print(image.shape)
     # print(image)
     # image = binarize(image, 128)
     gen_iterations = 10000
-    epsilon = 0.1
+    epsilon = 0.05
     beta = 0.9
-    img_h = 10
-    img_w = 10
+    img_h = 100
+    img_w = 0
 
-    threshold = 5
+    threshold = 0.001
 
-    gen_image = generate_image(img_h, img_w, beta, gen_iterations)
+    gen_image = image  #generate_image(img_h, img_w, beta, gen_iterations)
     noised_image = noise_image(gen_image, epsilon)
+
+    plt.imsave("binary_image.png", gen_image,cmap=mpl.cm.bone)
+    plt.imsave("noised_image.png", noised_image,cmap=mpl.cm.bone)
+
     denoised_image = Gibbs(gen_image, noised_image, epsilon, beta, threshold)
 
     mpl.rcParams['toolbar'] = 'None'
