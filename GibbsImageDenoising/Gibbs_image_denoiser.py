@@ -108,6 +108,23 @@ def calc_images_changes(noised_image, denoised_image):
     return np.mean(noised_image != denoised_image, dtype=np.float64)
 
 
+def most_probable_image(zeros_count, ones_count):
+    h = zeros_count.shape[0]
+    w = zeros_count.shape[1]
+    result_image = np.zeros((h, w))
+
+    print(zeros_count)
+    print(ones_count)
+
+    for y in range(h):
+        for x in range(w):
+            if zeros_count[y, x] > ones_count[y, x]:
+                result_image[y, x] = 0
+            else:
+                result_image[y, x] = 1
+    return result_image
+
+
 def Gibbs(original_image, noised_image, epsilon, beta, threshold):
     print("Gibbsing . . .")
     denoised_image = np.random.randint(2,
@@ -115,6 +132,8 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
                                              original_image.shape[1]))
     denoised_image_prev = denoised_image.copy()
     # TODO: counting most common values
+    zeros_count = np.zeros((noised_image.shape[0], noised_image.shape[1]))
+    ones_count = np.zeros((noised_image.shape[0], noised_image.shape[1]))
 
     iteration = 0
     while True:
@@ -133,6 +152,12 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
 
                 denoised_image[y, x] = int(np.random.uniform() >= t)
 
+                if iteration > 5 and iteration % 2 == 0:
+                    if denoised_image[y, x] == 0:
+                        zeros_count[y, x] += 1
+                    else:
+                        ones_count[y, x] += 1
+
         if calc_images_changes(denoised_image_prev,
                                denoised_image) < threshold:
             # if almost_equal_labelings(denoised_image, denoised_image_prev,
@@ -144,9 +169,12 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
                     iteration,
                     calc_images_changes(denoised_image_prev, denoised_image)))
             if iteration % 1000 == 0:
+                result_image_tmp = most_probable_image(zeros_count, ones_count)
                 plt.imsave("iteration_{0}__{1}.png".format(
                     iteration,
-                    calc_images_changes(denoised_image_prev, denoised_image)), denoised_image, cmap=mpl.cm.gray)
+                    calc_images_changes(denoised_image_prev, denoised_image)),
+                           result_image_tmp,
+                           cmap=mpl.cm.gray)
             denoised_image_prev = denoised_image.copy()
 
 
@@ -167,8 +195,8 @@ if __name__ == "__main__":
     gen_image = image  #generate_image(img_h, img_w, beta, gen_iterations)
     noised_image = noise_image(gen_image, epsilon)
 
-    plt.imsave("binary_image.png", gen_image,cmap=mpl.cm.bone)
-    plt.imsave("noised_image.png", noised_image,cmap=mpl.cm.bone)
+    plt.imsave("binary_image.png", gen_image, cmap=mpl.cm.bone)
+    plt.imsave("noised_image.png", noised_image, cmap=mpl.cm.bone)
 
     denoised_image = Gibbs(gen_image, noised_image, epsilon, beta, threshold)
 
