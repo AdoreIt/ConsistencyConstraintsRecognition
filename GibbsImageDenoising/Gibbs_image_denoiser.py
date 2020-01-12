@@ -111,7 +111,7 @@ def calc_images_changes(noised_image, denoised_image):
 def most_probable_image(zeros_count, ones_count):
     h = zeros_count.shape[0]
     w = zeros_count.shape[1]
-    result_image = np.zeros((h, w))
+    result_image = np.zeros((h, w), dtype=int)
 
     print(zeros_count)
     print(ones_count)
@@ -132,8 +132,8 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
                                              original_image.shape[1]))
     denoised_image_prev = denoised_image.copy()
     # TODO: counting most common values
-    zeros_count = np.zeros((noised_image.shape[0], noised_image.shape[1]))
-    ones_count = np.zeros((noised_image.shape[0], noised_image.shape[1]))
+    zeros_count = np.zeros((noised_image.shape[0], noised_image.shape[1]), dtype=int)
+    ones_count = np.zeros((noised_image.shape[0], noised_image.shape[1]), dtype=int)
 
     iteration = 0
     while True:
