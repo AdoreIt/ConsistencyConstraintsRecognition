@@ -162,7 +162,7 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
                                denoised_image) < threshold:
             # if almost_equal_labelings(denoised_image, denoised_image_prev,
             #                           threshold):
-            return denoised_image
+            return most_probable_image(zeros_count, ones_count)
         else:
             if iteration % 100 == 0:
                 print("iteration {0}: {1}".format(
