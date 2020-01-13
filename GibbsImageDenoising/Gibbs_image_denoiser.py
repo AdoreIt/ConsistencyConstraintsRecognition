@@ -6,6 +6,8 @@ import matplotlib.image as mpimg
 import matplotlib.gridspec as gridspec
 from PIL import Image
 
+import maxflow
+
 
 def add_image_figure(figure, name, location, image):
     fig_image = figure.add_subplot(location)
@@ -41,7 +43,8 @@ def get_neighbours(h, w, py, px):
     for nb in [(0, -1), (-1, 0), (0, 1), (1, 0)]:
         if px + nb[1] >= 0 and px + nb[1] < w and py + nb[0] >= 0 and py + nb[
                 0] < h:
-            neighbours.append(nb)
+            neighbours.append((py+nb[0], px+nb[1]))
+    # print(neighbours)
     return neighbours
 
 
@@ -113,8 +116,8 @@ def most_probable_image(zeros_count, ones_count):
     w = zeros_count.shape[1]
     result_image = np.zeros((h, w), dtype=int)
 
-    print(zeros_count)
-    print(ones_count)
+    # print(zeros_count)
+    # print(ones_count)
 
     for y in range(h):
         for x in range(w):
@@ -175,7 +178,18 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
                     calc_images_changes(denoised_image_prev, denoised_image)),
                            result_image_tmp,
                            cmap=mpl.cm.gray)
+                result_image_tmp = None
             denoised_image_prev = denoised_image.copy()
+
+
+# def maxflow(noised_image, epsilon, beta):
+#     g = maxflow.Graph[float]()
+#     height, width = noised_image.shape
+#     nodeids = g.add_grid_nodes((height, width))
+#     for y in range(height):
+#         for x in range(width):
+#             weight = g_tt(noised_image[y, x], noised_image, y, x, beta)
+#             g.add_edge(nodeids)
 
 
 if __name__ == "__main__":
@@ -185,14 +199,14 @@ if __name__ == "__main__":
     # print(image)
     # image = binarize(image, 128)
     gen_iterations = 10000
-    epsilon = 0.05
+    epsilon = 0.09
     beta = 0.9
-    img_h = 100
-    img_w = 0
+    img_h = 10
+    img_w = 10
 
-    threshold = 0.001
+    threshold = 0.041
 
-    gen_image = image  #generate_image(img_h, img_w, beta, gen_iterations)
+    gen_image = image #generate_image(img_h, img_w, beta, gen_iterations)
     noised_image = noise_image(gen_image, epsilon)
 
     plt.imsave("binary_image.png", gen_image, cmap=mpl.cm.bone)
