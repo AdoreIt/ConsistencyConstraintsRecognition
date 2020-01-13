@@ -43,15 +43,13 @@ def get_neighbours(h, w, py, px):
     for nb in [(0, -1), (-1, 0), (0, 1), (1, 0)]:
         if px + nb[1] >= 0 and px + nb[1] < w and py + nb[0] >= 0 and py + nb[
                 0] < h:
-            neighbours.append((py+nb[0], px+nb[1]))
-    # print(neighbours)
+            neighbours.append((py + nb[0], px + nb[1]))
     return neighbours
 
 
 def generate_image(height, width, beta, iterations):
     # generate k from {0,1}
     rnd_image = np.random.randint(2, size=(height, width))
-    # image = rnd_image.copy()
 
     if iterations % 2 != 0:
         iterations += 1
@@ -64,8 +62,6 @@ def generate_image(height, width, beta, iterations):
                 t = exp(-k_zero_weights_sum) / (exp(-k_zero_weights_sum) +
                                                 exp(-k_one_weights_sum))
                 rnd_image[y, x] = int(np.random.uniform() >= t)  # {0, 1}
-        # after iteration swap images
-        # image, rnd_image = rnd_image, image
 
     # after all iteration return generated image
     return rnd_image
@@ -96,18 +92,15 @@ def g_tt(k, k_, beta):
     return 0 if k == k_ else beta
 
 
-def sum_g_tt(zero_or_one, noised_image, y, x, beta):
-    neighbours = get_neighbours(noised_image.shape[0], noised_image.shape[1],
-                                y, x)
+def sum_g_tt(zero_or_one, image, y, x, beta):
+    neighbours = get_neighbours(image.shape[0], image.shape[1], y, x)
     edges_sum = 0
     for nb in neighbours:
-        edges_sum += g_tt(zero_or_one, noised_image[nb[0], nb[1]], beta)
-    # print(edges_sum)
+        edges_sum += g_tt(zero_or_one, image[nb[0], nb[1]], beta)
     return edges_sum
 
 
 def calc_images_changes(noised_image, denoised_image):
-    # print(np.mean(noised_image != denoised_image, dtype=np.float64))
     return np.mean(noised_image != denoised_image, dtype=np.float64)
 
 
@@ -115,9 +108,6 @@ def most_probable_image(zeros_count, ones_count):
     h = zeros_count.shape[0]
     w = zeros_count.shape[1]
     result_image = np.zeros((h, w), dtype=int)
-
-    # print(zeros_count)
-    # print(ones_count)
 
     for y in range(h):
         for x in range(w):
@@ -129,16 +119,20 @@ def most_probable_image(zeros_count, ones_count):
 
 
 def Gibbs(original_image, noised_image, epsilon, beta, threshold):
-    print("Gibbsing . . .")
+    print("\n--- Gibbs sampling denoising . . .")
     denoised_image = np.random.randint(2,
                                        size=(original_image.shape[0],
                                              original_image.shape[1]))
     denoised_image_prev = denoised_image.copy()
-    # TODO: counting most common values
-    zeros_count = np.zeros((noised_image.shape[0], noised_image.shape[1]), dtype=int)
-    ones_count = np.zeros((noised_image.shape[0], noised_image.shape[1]), dtype=int)
+
+    # Sum count of zeros and ones after each 2nd iteration
+    zeros_count = np.zeros((noised_image.shape[0], noised_image.shape[1]),
+                           dtype=int)
+    ones_count = np.zeros((noised_image.shape[0], noised_image.shape[1]),
+                          dtype=int)
 
     iteration = 0
+    # Gibbsing
     while True:
         iteration += 1
         for y in range(noised_image.shape[0]):
@@ -163,70 +157,109 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
 
         if calc_images_changes(denoised_image_prev,
                                denoised_image) < threshold:
-            # if almost_equal_labelings(denoised_image, denoised_image_prev,
-            #                           threshold):
             return most_probable_image(zeros_count, ones_count)
+
         else:
             if iteration % 100 == 0:
                 print("iteration {0}: {1}".format(
                     iteration,
                     calc_images_changes(denoised_image_prev, denoised_image)))
+
             if iteration % 1000 == 0:
                 result_image_tmp = most_probable_image(zeros_count, ones_count)
+                error_tmp = calc_images_changes(denoised_image_prev,
+                                                denoised_image)
+
+                print("Saving iteration_{0}__{1}.png".format(
+                    iteration, error_tmp))
                 plt.imsave("iteration_{0}__{1}.png".format(
-                    iteration,
-                    calc_images_changes(denoised_image_prev, denoised_image)),
-                           result_image_tmp,
+                    iteration, error_tmp, result_image_tmp),
                            cmap=mpl.cm.gray)
                 result_image_tmp = None
+
             denoised_image_prev = denoised_image.copy()
 
 
-# def maxflow(noised_image, epsilon, beta):
-#     g = maxflow.Graph[float]()
-#     height, width = noised_image.shape
-#     nodeids = g.add_grid_nodes((height, width))
-#     for y in range(height):
-#         for x in range(width):
-#             weight = g_tt(noised_image[y, x], noised_image, y, x, beta)
-#             g.add_edge(nodeids)
+def MaxFlow(noised_image, epsilon, beta):
+    print("\n--- MaxFlow denoising . . .")
+    g = maxflow.Graph[float]()
+    height, width = noised_image.shape
+    nodeids = g.add_grid_nodes((height, width))
+    for y in range(height):
+        for x in range(width):
+            # add edges
+            nbs = get_neighbours(height, width, y, x)
+            for nb in nbs:
+                edge_weight = g_tt(noised_image[y, x],
+                                   noised_image[nb[0], nb[1]], beta)
+                g.add_edge(nodeids[y, x], nodeids[nb[0], [1]], edge_weight,
+                           edge_weight)
+            # add vertices
+            g.add_tedge(nodeids[y, x], q_t(0, noised_image[y, x], epsilon),
+                        q_t(1, noised_image[y, x], epsilon))
+
+    # MaxFlow
+    g.maxflow()
+    segments = g.get_grid_segments(nodeids)
+    denoised_maxflow = np.int_(np.logical_not(segments))
+    return denoised_maxflow
 
 
 if __name__ == "__main__":
-    image = binarizate(np.asarray(Image.open("filename.png").convert('L')),
+    # Read from file or generate image
+    read_from_file = True
+
+    input_image_path = "bold_tree_300x300.png"
+    image = binarizate(np.asarray(Image.open(input_image_path).convert('L')),
                        128)
-    # print(image.shape)
-    # print(image)
-    # image = binarize(image, 128)
-    gen_iterations = 10000
+
+    # Generation parameters
+    generation_iterations = 10000
+    image_height = 10
+    image_width = 10
+
+    # Denoising parameters
     epsilon = 0.09
     beta = 0.9
-    img_h = 10
-    img_w = 10
+    threshold = 0.05
 
-    threshold = 0.041
+    if read_from_file:
+        gen_image = image
+    else:
+        gen_image = generate_image(image_height, image_width, beta,
+                                   generation_iterations)
 
-    gen_image = image #generate_image(img_h, img_w, beta, gen_iterations)
     noised_image = noise_image(gen_image, epsilon)
 
-    plt.imsave("binary_image.png", gen_image, cmap=mpl.cm.bone)
+    print("Saving input image...")
+    plt.imsave("binary_bold_tree_300x300.png", gen_image, cmap=mpl.cm.bone)
+    print("Saving noised image...")
     plt.imsave("noised_image.png", noised_image, cmap=mpl.cm.bone)
 
-    denoised_image = Gibbs(gen_image, noised_image, epsilon, beta, threshold)
+    denoised_maxflow = MaxFlow(noised_image, epsilon, beta)
+    print("Saving denoised with MaxFlow image...")
+    plt.imsave("denoised_MaxFlow_MaxFlow.png",
+               denoised_maxflow,
+               cmap=mpl.cm.bone)
 
+    denoised_gibbs = Gibbs(gen_image, noised_image, epsilon, beta, threshold)
+    print("Saving denoised with Gibbs sampler image...")
+    plt.imsave("denoised_Gibbs.png", denoised_gibbs, cmap=mpl.cm.bone)
+
+    # Plotting resutsMaxFlow
+    print("\n\nPlotting results... ")
     mpl.rcParams['toolbar'] = 'None'
     figure = plt.figure()
     figure.canvas.set_window_title('Histogram creator. Image binarizator')
-    specs = gridspec.GridSpec(ncols=3, nrows=1, figure=figure)
+    specs = gridspec.GridSpec(ncols=4, nrows=1, figure=figure)
 
-    # fig_binary_image = add_image_figure(figure, "Binarized image", specs[0, 0],
-    #                                     image)
-
-    fig_generated_image = add_image_figure(figure, "Generated image",
+    fig_generated_image = add_image_figure(figure, "Read or generated image",
                                            specs[0, 0], gen_image)
-    fig_noised_image = add_image_figure(figure, "Noised image", specs[0, 1],
+    fig_noised_image = add_image_figure(figure, "Noised", specs[0, 1],
                                         noised_image)
-    fig_denoised_image = add_image_figure(figure, "Denoised image",
-                                          specs[0, 2], denoised_image)
+    fig_denoised_image = add_image_figure(figure, "Gibbs", specs[0, 2],
+                                          denoised_gibbs)
+    fig_denoised_maxflow = add_image_figure(figure, "MaxFlow", specs[0, 3],
+                                            denoised_maxflow)
 
     plt.show()
