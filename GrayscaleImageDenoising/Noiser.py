@@ -1,12 +1,12 @@
 import numpy as np
 
-def noise_gaussian(image, loc=0.0, scale=1.0):
+def noise_gaussian(image, loc=0.0, scale=10.0):
     noised_image = image + np.random.normal(loc, scale, image.shape)
-    return np.array(clip(noised_image, 0, 255), dtype=int)
+    return np.array(np.clip(noised_image, 0, 255), dtype=int)
 
 def noise_laplace(image, loc=0.0, scale=1.0):
     noised_image = image + np.random.laplace(loc, scale, image.shape)
-    return np.array(clip(noised_image, 0, 255), dtype=int)
+    return np.array(np.clip(noised_image, 0, 255), dtype=int)
 
 def noise_salt_and_pepper(image, probability):
     noised_image = image.copy()
