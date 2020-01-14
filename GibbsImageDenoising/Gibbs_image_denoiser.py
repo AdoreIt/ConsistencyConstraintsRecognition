@@ -172,7 +172,7 @@ def Gibbs(original_image, noised_image, epsilon, beta, threshold):
 
                 print("Saving iteration_{0}__{1}.png".format(
                     iteration, error_tmp))
-                plt.imsave("iteration_{0}__{1}.png".format(
+                plt.imsave("tmp/iteration_{0}__{1}.png".format(
                     iteration, error_tmp, result_image_tmp),
                            cmap=mpl.cm.gray)
                 result_image_tmp = None
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     # Read from file or generate image
     read_from_file = True
 
-    input_image_path = "bold_tree_300x300.png"
+    input_image_path = "Images/bold_tree_300x300.png"
     image = binarizate(np.asarray(Image.open(input_image_path).convert('L')),
                        128)
 
@@ -232,19 +232,19 @@ if __name__ == "__main__":
     noised_image = noise_image(gen_image, epsilon)
 
     print("Saving input image...")
-    plt.imsave("binary_bold_tree_300x300.png", gen_image, cmap=mpl.cm.bone)
+    plt.imsave("tmp/binary_bold_tree_300x300.png", gen_image, cmap=mpl.cm.bone)
     print("Saving noised image...")
-    plt.imsave("noised_image.png", noised_image, cmap=mpl.cm.bone)
+    plt.imsave("tmp/noised_image.png", noised_image, cmap=mpl.cm.bone)
 
     denoised_maxflow = MaxFlow(noised_image, epsilon, beta)
     print("Saving denoised with MaxFlow image...")
-    plt.imsave("denoised_MaxFlow_MaxFlow.png",
+    plt.imsave("tmp/denoised_MaxFlow_MaxFlow.png",
                denoised_maxflow,
                cmap=mpl.cm.bone)
 
     denoised_gibbs = Gibbs(gen_image, noised_image, epsilon, beta, threshold)
     print("Saving denoised with Gibbs sampler image...")
-    plt.imsave("denoised_Gibbs.png", denoised_gibbs, cmap=mpl.cm.bone)
+    plt.imsave("tmp/denoised_Gibbs.png", denoised_gibbs, cmap=mpl.cm.bone)
 
     # Plotting resutsMaxFlow
     print("\n\nPlotting results... ")
