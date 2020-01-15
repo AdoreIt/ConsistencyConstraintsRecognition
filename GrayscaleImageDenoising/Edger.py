@@ -1,5 +1,11 @@
 import numpy as np
 
+b2 = {
+    (0, 1): 0,
+    (0, -1): 1,
+    (1, 0): 2,
+    (-1, 0): 3
+}
 
 def get_edge_index(ar, y, x, dy, dx, m1, m2):
     # dx, dy are either -1 or 1
@@ -8,45 +14,27 @@ def get_edge_index(ar, y, x, dy, dx, m1, m2):
 
     h = ar.shape[0]
     w = ar.shape[1]
-
-    if dx < 0:
-        if x == 0:
+    
+    if (dx < 0 and x == 0) or (dy < 0 and y == 0) or (dx > 0 and x == w - 1) or (dy > 0 and y == h - 1):
+            print(y, x, dy, dx,  m1, m2)
             return None
-        x -= 1
-        dx = -dx
-        m1, m2 = m2, m1
-
-    if dy < 0:
-        if y == 0:
-            return None
-        y -= 1
-        dy = -dy
-        m1, m2 = m2, m1
-
-    if dx > 0 and x == w - 1:
-        return None
-
-    if dy > 0 and y == h - 1:
-        return None
-
+    global b2
     b0 = m1
     b1 = m2
-    b2 = 0 if dx > 0 else 1
-
-    return x, y, (b0 << 0) | (b1 << 1) | (b2 << 2)
+    return (b0 << 0) | (b1 << 1) | (b2[(dy, dx)] << 2)
 
 
 def get_edge_weight(ar, y, x, dy, dx, m1, m2):
     idx = get_edge_index(ar, y, x, dy, dx, m1, m2)
     if idx:
-        x, y, z = idx
+        z = idx
         return ar[y, x, z]
 
 
 def set_edge_weight(ar, y, x, dy, dx, m1, m2, value):
     idx = get_edge_index(ar, y, x, dy, dx, m1, m2)
     if idx:
-        x, y, z = idx
+        z = idx
         ar[y, x, z] = value
 
 
@@ -65,7 +53,10 @@ def get_neighbours_shift(h, w, py, px):
     return neighbours
 
 if __name__ == "__main__":
-    edges = np.full((3, 3, 8), 999)
+    edges = np.full((3, 3, 16), 999)
+    
+    get_edge_index(edges, 0, 0, 1, 1, 0, 0)
+
 
     #           y   x
     # left:   ( 0, -1 )
@@ -121,7 +112,6 @@ if __name__ == "__main__":
 
     for y in range(image.shape[0]):
         for x in range(image.shape[1]):
-            print(y, x)
             nbs = get_neighbours_shift(image.shape[0], image.shape[1], y, x)
             for nb in nbs:
                 print("NB: ", nb)

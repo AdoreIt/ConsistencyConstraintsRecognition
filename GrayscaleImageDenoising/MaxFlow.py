@@ -17,7 +17,7 @@ class MaxFlow():
 
         # Alpha expansion
         self.nodes = np.zeros((self.height, self.width, 2))
-        self.edges = np.zeros((self.height, self.width, 8))
+        self.edges = np.zeros((self.height, self.width, 16))
         self.labels = [k for k in range(256)]
         self.kk_weight = None
         self.compute_nodes_weights()
@@ -40,19 +40,24 @@ class MaxFlow():
 
     def set_graph_weights(self):
         self.nodes = np.zeros((self.height, self.width, 2))
-        self.edges = np.zeros((self.height, self.width, 8))
+        self.edges = np.zeros((self.height, self.width, 16))
 
         for y in range(self.height):
             for x in range(self.width):
-                k = self.denoised[y, x]
+                k = self.denoised[y,x]
+
+
                 self.nodes[y, x, 0] = self.kk_weight[self.noised[y, x], k]
                 self.nodes[y, x, 1] = self.kk_weight[self.noised[y, x], self.a]
+
                 nbs = get_neighbours_shift(self.height, self.width, y, x)
+                # print(x, y)
                 for nb in nbs:
                     k_ = self.denoised[y + nb[0], x + nb[1]]
                     # 0 - 0: k - k`
                     set_edge_weight(self.edges, y, x, nb[0], nb[1], 0, 0,
                                     self.edge_weight(k, k_))
+                    # print(get_edge_weight(self.edges, y, x, nb[0], nb[1], 0, 0))
                     # 0 - 1: k - alpha
                     set_edge_weight(self.edges, y, x, nb[0], nb[1], 0, 1,
                                     self.edge_weight(k, self.a))
@@ -126,6 +131,7 @@ class MaxFlow():
         for y in range(self.height):
             for x in range(self.width):
                 if np.int_(np.logical_not(segments[y, x])) == 1:
+                    # print(self.a)
                     self.denoised[y, x] = self.a
 
     def alpha_expansion(self):
