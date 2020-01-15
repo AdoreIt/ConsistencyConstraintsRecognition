@@ -29,17 +29,15 @@ if __name__ == "__main__":
     noised_laplace = noise_laplace(image, loc_laplace, scale_laplace)
     noised_salt_and_pepper = noise_salt_and_pepper(image, sp_probability)
 
-    # max_flow = MaxFlow(noised_gaussian, lamda, sigma, number_of_iterations)
-    # den_gaussian = max_flow.alpha_expansion()
-
-    # max_flow = MaxFlow(noised_laplace, lamda, sigma, number_of_iterations)
-    # den_laplace = max_flow.alpha_expansion()
-
     max_flow = MaxFlow(noised_gaussian, lamda, sigma, number_of_iterations)
+    den_gaussian = max_flow.alpha_expansion()
+
+    max_flow = MaxFlow(noised_laplace, lamda, sigma, number_of_iterations)
+    den_laplace = max_flow.alpha_expansion()
+
+    max_flow = MaxFlow(noised_salt_and_pepper, lamda, sigma, number_of_iterations)
     den_sp = max_flow.alpha_expansion()
 
     # Plot results
     plot(image, noised_gaussian, noised_laplace, noised_salt_and_pepper,
-         den_sp, den_sp, den_sp)
-    # plot(image, noised_gaussian, noised_laplace, noised_salt_and_pepper,
-    #      den_gaussian, den_laplace, den_sp)
+         den_gaussian, den_laplace, den_sp)
